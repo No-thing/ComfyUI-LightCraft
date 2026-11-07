@@ -50,7 +50,7 @@ Full manual: [`MANUAL.md`](MANUAL.md). Short clips of every tab are on the Civit
 
 ## Credits
 
-- [storytold/lightcraft](https://github.com/storytold/lightcraft): UI inspiration.
+- [storytold/lightcraft](https://github.com/storytold/lightcraft) (MIT or Apache-2.0): UI inspiration. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - **AusBoss**: Qwen outpaint and tiled restore nodes.
 - Google MediaPipe Face Landmarker (face points).
 
