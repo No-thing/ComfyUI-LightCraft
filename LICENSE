@@ -1,0 +1,21 @@
+No_Thing Free Use Licence v1
+
+Copyright (c) 2026 No_Thing (https://github.com/No-thing)
+
+These packs are free. You may:
+
+1. Use them for personal and commercial image-making (the pictures you make are yours).
+2. Modify them for your own use.
+3. Share them unchanged or modified, for free, as long as you keep this licence, keep the credit to No_Thing, and say what you changed.
+
+You may not:
+
+4. Sell the packs or your copy of them, or put them behind a paywall, alone or inside a paid bundle or subscription. Selling or posting the images you make with them, client work, and paid tutorials that teach how to use them are all fine.
+5. Use the code, documentation, images, icons or text in this repository to train, fine-tune, or build datasets for AI or machine-learning models, or to have an AI system recreate or clone them.
+6. Re-upload them elsewhere and present them as your own work.
+
+Third-party parts keep their own licences and credit: the UI idea comes from storytold/lightcraft, outpaint and tiled restore nodes are by AusBoss, face landmarks use Google MediaPipe. This licence does not change theirs.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE AUTHOR IS NOT LIABLE FOR ANY CLAIM OR DAMAGE ARISING FROM ITS USE.
+
+Note: this is a custom source-available licence, not an open source licence, and it is not legal advice.
