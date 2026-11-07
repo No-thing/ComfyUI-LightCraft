@@ -56,4 +56,4 @@ Full manual: [`MANUAL.md`](MANUAL.md). Short clips of every tab are on the Civit
 
 ## Licence
 
-Add your licence here.
+[No_Thing Free Use Licence v1](LICENSE): free to use and modify (including commercial image-making), share for free with credit; no selling the packs, no AI training on them, no re-uploading as your own.
