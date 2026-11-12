@@ -63,6 +63,13 @@ try:  # the Upscale tab: TEMP clean-up + metadata copy for the "_up" pictures
 except Exception:
     pass
 
+try:  # the Browse tab: lists the output folder and makes thumbnails (works without any other pack)
+    from .lc_browse import register_routes as _browse_routes
+
+    _browse_routes()
+except Exception as _e:
+    print(f"[LightCraft] Browse routes not registered ({_e})")
+
 NODE_CLASS_MAPPINGS = {
     "LightCraftDevelop": LightCraftDevelop,
     "LightCraftGrade": LightCraftGrade,

@@ -1,3 +1,8 @@
+## v3.0.1
+
+* Browse now works on its own. It no longer needs the Upscaler (Station) pack, which fixes the "HTTP 404" in the Browse tab. Star ratings still live in the same file, so they stay shared if you also use the Station.
+* Edit Page only opens pictures inside ComfyUI's input, output and temp folders.
+
 ## v3
 
 * Flux (optional) skin pass is now tiled with a reference: 2 or 4 tiles.

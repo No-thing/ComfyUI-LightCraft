@@ -224,7 +224,7 @@ export async function finRefresh(node, more) {
   try {
     const base = saverBase();
     if (base === null) throw new Error("No Image Saver in the workflow.");
-    const roots = await jget("/lcu/roots");
+    const roots = await jget("/lightcraft/lib/roots");
     const root = ((roots.roots || [])[0] || {}).path;
     if (!root) throw new Error("The output folder is not known.");
     const sep = root.includes("\\") ? "\\" : "/";
@@ -237,13 +237,13 @@ export async function finRefresh(node, more) {
     const roots2 = [top, ...mirrors.map((m) => root + sep + m.split("/").join(sep))];
     const dirs = [];
     for (let i = 0; i < roots2.length; i++) {
-      try { const l = await jget(`/lcu/list?path=${enc(roots2[i])}`); lists.push(l); for (const d of (l.dirs || [])) dirs.push(d); } catch (e) { /* the mirror may not exist yet */ }
+      try { const l = await jget(`/lightcraft/lib/list?path=${enc(roots2[i])}`); lists.push(l); for (const d of (l.dirs || [])) dirs.push(d); } catch (e) { /* the mirror may not exist yet */ }
     }
     dirs.sort((a, b) => b.name.localeCompare(a.name));                      // dated folders: newest first
     let nHave = lists.reduce((n, l) => n + (l.files || []).length, 0), used = 0;
     for (const d of dirs) {
       if (!f.showAll && nHave >= SHOWN) break;                               // enough for the first view
-      try { const l = await jget(`/lcu/list?path=${enc(d.path)}`); lists.push(l); nHave += (l.files || []).length; used++; } catch (e) { /* a folder that vanished */ }
+      try { const l = await jget(`/lightcraft/lib/list?path=${enc(d.path)}`); lists.push(l); nHave += (l.files || []).length; used++; } catch (e) { /* a folder that vanished */ }
     }
     f.moreDirs = used < dirs.length;
     const files = [];
@@ -269,7 +269,7 @@ export async function finRefresh(node, more) {
     f.loaded = true;
   } catch (e) {
     const m = String(e.message || e);
-    f.err = /HTTP 404/.test(m) ? "Browse needs the ComfyUI-LightCraft-Upscaler pack (the Station) next to LightCraft. Install it, restart ComfyUI and reload the page. The other tabs work without it." : m;
+    f.err = /HTTP 404/.test(m) ? "Browse could not reach LightCraft on the server. Restart ComfyUI, then hard-refresh the page (Ctrl+F5)." : m;
     f.loaded = true;
   }
   f.loading = false;
@@ -288,14 +288,14 @@ function imgOf(store, node, key, url) {
   img.src = url;
   return null;
 }
-const thumbOf = (node, x) => imgOf(F(node).thumbs, node, x.abs + x.mtime, api.apiURL(`/lcu/thumb?path=${enc(x.abs)}&s=160`));
+const thumbOf = (node, x) => imgOf(F(node).thumbs, node, x.abs + x.mtime, api.apiURL(`/lightcraft/lib/thumb?path=${enc(x.abs)}&s=160`));
 // real pixel size of a saved picture (the preview we draw is scaled down), fetched once
 function dimOf(node, x) {
   if (x.dim || x.dimReq) return;
   x.dimReq = true;
-  api.fetchApi(`/lcu/meta?path=${enc(x.abs)}`).then((r) => r.json()).then((m) => { if (m && m.w) { x.dim = [m.w, m.h]; node.setDirtyCanvas(true, true); } }).catch(() => { x.dimReq = false; });
+  api.fetchApi(`/lightcraft/lib/meta?path=${enc(x.abs)}`).then((r) => r.json()).then((m) => { if (m && m.w) { x.dim = [m.w, m.h]; node.setDirtyCanvas(true, true); } }).catch(() => { x.dimReq = false; });
 }
-const previewOf = (node, x) => imgOf(F(node).imgs, node, x.abs + x.mtime, api.apiURL(`/lcu/preview?path=${enc(x.abs)}&s=1600`));
+const previewOf = (node, x) => imgOf(F(node).imgs, node, x.abs + x.mtime, api.apiURL(`/lightcraft/lib/preview?path=${enc(x.abs)}&s=1600`));
 
 // the full-size picture for the compare view: only fetched while you are zoomed in, and only the last two are kept (light on memory and disk)
 function hiOf(node, x) {
@@ -305,7 +305,7 @@ function hiOf(node, x) {
     const keys = Object.keys(f.hiMap); if (keys.length >= 2) delete f.hiMap[keys[0]];
     f.hiMap[k] = {};
   }
-  return imgOf(f.hiMap[k], node, "full", api.apiURL(`/lcu/preview?path=${enc(x.abs)}&s=4096`));
+  return imgOf(f.hiMap[k], node, "full", api.apiURL(`/lightcraft/lib/preview?path=${enc(x.abs)}&s=4096`));
 }
 
 // what the picture view shows in this tab: the saved picture and its _up twin
@@ -333,7 +333,7 @@ async function rate(node, x, k) {
   const v = x.r === k ? 0 : k;
   x.r = v;
   node.setDirtyCanvas(true, true);
-  try { await api.fetchApi("/lcu/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths: [x.abs], rating: v }) }); }
+  try { await api.fetchApi("/lightcraft/lib/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths: [x.abs], rating: v }) }); }
   catch (e) { console.error("[LightCraft] could not save the rating", e); }
 }
 function star(ctx, cx, cy, r, on) {
