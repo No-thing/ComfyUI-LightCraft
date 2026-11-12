@@ -74,6 +74,8 @@ def apply_state(image, raw):
 
 # ---------------------------------------------------------------- live preview over HTTP
 _CACHE = {}
+MAX_PREVIEW_PIXELS = 40_000_000       # the panel sends a reduced copy; anything bigger than this is refused instead of filling memory
+MAX_CACHED = 3
 
 
 def register_routes():
@@ -88,9 +90,12 @@ def register_routes():
         key = str(form.get("key", ""))
         up = form.get("image")
         if up is not None and hasattr(up, "file"):
-            im = Image.open(io.BytesIO(up.file.read())).convert("RGB")
+            im = Image.open(io.BytesIO(up.file.read()))
+            if im.width * im.height > MAX_PREVIEW_PIXELS:
+                return web.json_response({"error": "Preview picture is too large."}, status=413)
+            im = im.convert("RGB")
             _CACHE[key] = np.asarray(im, dtype=np.float32) / 255.0
-            if len(_CACHE) > 6:
+            if len(_CACHE) > MAX_CACHED:
                 _CACHE.pop(next(iter(_CACHE)))
         arr = _CACHE.get(key)
         if arr is None:

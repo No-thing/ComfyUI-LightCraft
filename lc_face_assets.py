@@ -7,6 +7,7 @@ If the download is blocked, put the files into the face_assets folder by hand (s
 """
 import asyncio
 import os
+import threading
 import urllib.request
 
 HERE = os.path.join(os.path.dirname(__file__), "face_assets")
@@ -34,8 +35,20 @@ def _get(url):
         return r.read()
 
 
+_LOCK = threading.Lock()
+
+
 def download():
-    """Fetch what is missing. Returns (ok, message)."""
+    """Fetch what is missing. Returns (ok, message). Only one download runs at a time."""
+    if not _LOCK.acquire(blocking=False):
+        return False, "A download is already running. Wait a moment."
+    try:
+        return _download()
+    finally:
+        _LOCK.release()
+
+
+def _download():
     os.makedirs(HERE, exist_ok=True)
     errors = []
     for name in missing():

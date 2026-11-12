@@ -10,17 +10,9 @@ import { UI } from "./lc_brand.js";
 export const SLAB = `"Roboto Slab", Rockwell, "Arvo", "Zilla Slab", Georgia, serif`;
 export const tabFont = (px = 14.5) => `700 ${px}px ${UI}, ${SLAB}`;      // brand lettering: Montserrat Alternates (slab only as a fallback)
 
-let fontAsked = false;
-export function loadSlab() {                                              // Roboto Slab from Google Fonts; without internet the stack falls back to Rockwell / Georgia
-  if (fontAsked || typeof document === "undefined") return;
-  fontAsked = true;
-  try {
-    const l = document.createElement("link");
-    l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700;800&display=swap";
-    l.onload = () => { if (document.fonts && document.fonts.load) document.fonts.load(`800 14px "Roboto Slab"`).then(() => { if (app.graph) app.graph.setDirtyCanvas(true, true); }).catch(() => {}); };
-    document.head.appendChild(l);
-  } catch (e) { /* fonts are cosmetic */ }
-}
+// Privacy: nothing is loaded from the internet any more (this used to ask Google Fonts for Roboto Slab, which told Google
+// that you opened the Edit Page). The brand fonts are bundled in web/fonts; Roboto Slab was only a fallback.
+export function loadSlab() { /* kept so older imports still work; does nothing */ }
 
 const TIPS = {
   compare: ["Auto  ·  Q / E for tabs", "The hands-off tab: everything runs from start to end, and you see before and after.", "Drag in the picture to move the divider. With Full mode on, only this tab and the Upscale tab upscale; the Color, Face and Crop tabs never do, so a picture is not upscaled before you have edited it."],

@@ -6,6 +6,7 @@ Only ComfyUI's output folder can be read. Star ratings are kept in ONE json file
 (user/lightcraft/library.json), never next to your pictures; the Upscaler Station uses the same file, so ratings are shared.
 Thumbnails are small cached webp files in user/lightcraft/thumbs (trimmed oldest first above 500 MB).
 """
+import asyncio
 import hashlib
 import json
 import os
@@ -14,7 +15,7 @@ import threading
 
 from PIL import Image, ImageOps
 
-Image.MAX_IMAGE_PIXELS = None
+# Pillow's own decompression-bomb protection stays ON (warns above ~89 MP, refuses above ~178 MP).
 IMG_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 CACHE_MAX = 500 * 1024 * 1024
 LIST_LIMIT = 3000                      # a folder with more pictures than this is cut off instead of freezing the page
@@ -183,10 +184,18 @@ def register_routes():
     from server import PromptServer
     routes = PromptServer.instance.routes
 
+    gate = asyncio.Semaphore(2)                       # at most two pictures are decoded at once (memory)
+
+    async def work(fn, *a):
+        async with gate:
+            return await asyncio.get_running_loop().run_in_executor(None, fn, *a)
+
     def guard(fn):
         async def run(request):
             try:
                 return await fn(request)
+            except Image.DecompressionBombError:
+                return web.json_response({"error": "This picture is too large to preview safely."}, status=413)
             except BrowseError as e:
                 return web.json_response({"error": str(e)}, status=400)
             except FileNotFoundError:
@@ -203,24 +212,24 @@ def register_routes():
     @routes.get("/lightcraft/lib/list")
     @guard
     async def _list(request):
-        return web.json_response(_browse().list_dir(request.query.get("path", "")))
+        return web.json_response(await work(_browse().list_dir, request.query.get("path", "")))
 
     @routes.get("/lightcraft/lib/thumb")
     @guard
     async def _thumb(request):
-        p = _browse().thumb(request.query.get("path", ""), request.query.get("s", 320))
+        p = await work(_browse().thumb, request.query.get("path", ""), request.query.get("s", 320))
         return web.FileResponse(p, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
     @routes.get("/lightcraft/lib/preview")
     @guard
     async def _preview(request):
-        p = _browse().preview(request.query.get("path", ""), request.query.get("s", 2048))
+        p = await work(_browse().preview, request.query.get("path", ""), request.query.get("s", 2048))
         return web.FileResponse(p, headers={"Cache-Control": "public, max-age=3600"})
 
     @routes.get("/lightcraft/lib/meta")
     @guard
     async def _meta(request):
-        return web.json_response(_browse().meta(request.query.get("path", "")))
+        return web.json_response(await work(_browse().meta, request.query.get("path", "")))
 
     @routes.post("/lightcraft/lib/mark")
     @guard

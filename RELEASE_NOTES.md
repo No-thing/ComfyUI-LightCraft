@@ -1,7 +1,11 @@
 ## v3.0.1
 
 * Browse now works on its own. It no longer needs the Upscaler (Station) pack, which fixes the "HTTP 404" in the Browse tab. Star ratings still live in the same file, so they stay shared if you also use the Station.
-* Edit Page only opens pictures inside ComfyUI's input, output and temp folders.
+* Edit Page and the Watermark node only open pictures inside ComfyUI's input, output and temp folders (symlinks are followed to the real file before checking).
+* Browse keeps Pillow's decompression-bomb protection on, decodes at most two pictures at a time, and does the heavy work without freezing the ComfyUI server.
+* The Color panel's live preview refuses pictures over 40 megapixels and keeps fewer in memory.
+* The Edit Page no longer asks Google Fonts for a font. Nothing is loaded from the internet except the optional face-detection files.
+* Only one face-detection download can run at a time.
 
 ## v3
 

@@ -134,7 +134,8 @@ class LightCraftWatermark:
         free_y_percent = free_y_percent if isinstance(free_y_percent, (int, float)) and math.isfinite(free_y_percent) else 50.0
         try:
             from PIL import Image
-            path = folder_paths.get_annotated_filepath(watermark)
+            from .lc_safe import safe_annotated_path
+            path = safe_annotated_path(watermark)
             wm = np.asarray(Image.open(path).convert("RGBA"), dtype=np.float32) / 255.0
         except Exception as e:
             print(f"[LightCraft] watermark skipped ({e})")

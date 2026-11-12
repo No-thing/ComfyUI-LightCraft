@@ -46,11 +46,8 @@ def _input_files():
 
 
 def _load_file(name):
-    path = folder_paths.get_annotated_filepath(name)
-    real = os.path.realpath(path)                              # only pictures inside ComfyUI's input / output / temp folders
-    roots = [os.path.realpath(d) for d in (folder_paths.get_input_directory(), folder_paths.get_output_directory(), folder_paths.get_temp_directory())]
-    if not any(real == r or real.startswith(r + os.sep) for r in roots):
-        raise ValueError("picture is outside the ComfyUI folders")
+    from .lc_safe import safe_annotated_path
+    path = safe_annotated_path(name)
     with Image.open(path) as im:
         im = ImageOps.exif_transpose(im)
         if im.mode in ("RGBA", "LA") or "transparency" in im.info:
