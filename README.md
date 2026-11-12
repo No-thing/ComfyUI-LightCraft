@@ -9,7 +9,7 @@ Made by **No_Thing**. The UI idea comes from [storytold/lightcraft](https://gith
 | Tab | What you get |
 | --- | --- |
 | **Auto** | Press Run once. Full auto also adds the Flux skin pass and eyes pass. |
-| **Browse** | Fast light grid of your saved pictures, star ratings, tick pictures for a batch. |
+| **Browse** | Fast light grid of your saved pictures, star ratings, tick pictures for a batch. **Needs the ComfyUI-LightCraft-Upscaler (Station) pack installed.** |
 | **Crop** | Rule-of-thirds grid, straighten, aspect buttons, outpaint (gray canvas is filled by Qwen). |
 | **Face** | Find face, then eyes, nose and lips sliders (plus jaw, chin, cheeks, brows). Fix eyes. |
 | **Color** | 50 looks (LUTs), FX, grain, lens. Applied once at the end. |

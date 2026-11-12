@@ -267,7 +267,11 @@ export async function finRefresh(node, more) {
     f.sel = new Set([...f.sel].filter((k) => have.has(k)));
     if (!f.cur || !files.some((x) => x.rel === f.cur)) f.cur = files.length ? files[0].rel : null;
     f.loaded = true;
-  } catch (e) { f.err = String(e.message || e); f.loaded = true; }
+  } catch (e) {
+    const m = String(e.message || e);
+    f.err = /HTTP 404/.test(m) ? "Browse needs the ComfyUI-LightCraft-Upscaler pack (the Station) next to LightCraft. Install it, restart ComfyUI and reload the page. The other tabs work without it." : m;
+    f.loaded = true;
+  }
   f.loading = false;
   node.setDirtyCanvas(true, true);
 }
