@@ -165,6 +165,34 @@ async function uploadNow(node, st) {
   } finally { K.busy = false; node.setDirtyCanvas(true, true); }
 }
 
+// A real text box laid over the panel's prompt area (ComfyUI's own little prompt popup is too small to write in).
+// Enter = new line, Ctrl+Enter or clicking away = keep, Escape = cancel. Keys stay inside the box, so ComfyUI shortcuts do not fire while typing.
+function openPromptEditor(node, x, y, w, h) {
+  if (node.__lcEditBox) return;
+  const cv = app.canvas, r = cv.canvas.getBoundingClientRect(), ds = cv.ds, sc = ds.scale;
+  const sx = r.left + (node.pos[0] + x + ds.offset[0]) * sc, sy = r.top + (node.pos[1] + y + ds.offset[1]) * sc;
+  const ta = document.createElement("textarea");
+  ta.value = readEdit(node).prompt; ta.spellcheck = false; ta.placeholder = "Trigger word first, then what you want";
+  Object.assign(ta.style, { position: "fixed", left: sx + "px", top: sy + "px", width: Math.max(220, w * sc) + "px", height: Math.max(120, h * sc) + "px", zIndex: 100000,
+    boxSizing: "border-box", resize: "both", padding: "8px 10px", background: "#161616", color: "#eee", border: "1px solid " + ORANGE, borderRadius: "6px",
+    font: `${Math.max(12, 12 * sc)}px Inter, 'Segoe UI', sans-serif`, outline: "none", boxShadow: "0 8px 28px rgba(0,0,0,.6)" });
+  let done = false;
+  const close = (keep) => {
+    if (done) return; done = true;
+    if (keep) writeEdit(node, { ...readEdit(node), prompt: ta.value.slice(0, 2000) }, true);
+    node.__lcEditBox = null; ta.remove();
+  };
+  ta.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") { e.preventDefault(); close(false); }
+    else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); close(true); }
+  });
+  ta.addEventListener("keyup", (e) => e.stopPropagation());
+  ta.addEventListener("blur", () => close(true));
+  node.__lcEditBox = ta;
+  document.body.appendChild(ta); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
 function resetMask(node) {
   const K = node.__lcEdit;
   if (K && K.cv) { K.cv.getContext("2d").clearRect(0, 0, K.cv.width, K.cv.height); K.painted = false; }
@@ -299,21 +327,22 @@ export function drawEditPanel(ctx, node, px, py, pw, ph, e, getState) {
   ctx.fillStyle = C.head; ctx.font = "600 12px Inter, 'Segoe UI', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText("Prompt", ix, y + 8);
   ctx.strokeStyle = C.rule; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ix, y + 19.5); ctx.lineTo(ix + iw, y + 19.5); ctx.stroke();
   y += 26;
-  rr(ctx, ix, y, iw, 54, 5); ctx.fillStyle = C.well; ctx.fill(); ctx.strokeStyle = C.wellEdge; ctx.stroke();
-  ctx.font = "11px Inter, 'Segoe UI', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+  const PH = 120;                                                                                                // the prompt box: tall enough to see several lines
+  rr(ctx, ix, y, iw, PH, 5); ctx.fillStyle = C.well; ctx.fill(); ctx.strokeStyle = C.wellEdge; ctx.stroke();
+  ctx.font = "11.5px Inter, 'Segoe UI', sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
   ctx.fillStyle = d.prompt ? "#ececec" : "#777";
-  const words = (d.prompt || "Click here. Type the trigger word of your LoRA and what you want.").split(/\s+/);
-  let line = "", ly = y + 6, lines = 0;
-  for (const w of words) {
-    const t = line ? line + " " + w : w;
-    if (ctx.measureText(t).width > iw - 16 && line) { ctx.fillText(line, ix + 8, ly); ly += 14; lines++; line = w; if (lines >= 3) { line = ""; break; } } else line = t;
+  let ly = y + 7, shown = 0;
+  const paras = (d.prompt || "Click here to write. Start with the trigger word of your LoRA, then what you want.").split("\n");
+  outer: for (const para of paras) {
+    let line = "";
+    for (const w of para.split(/\s+/)) {
+      const t = line ? line + " " + w : w;
+      if (ctx.measureText(t).width > iw - 16 && line) { ctx.fillText(line, ix + 8, ly); ly += 15; if (++shown >= 7) break outer; line = w; } else line = t;
+    }
+    ctx.fillText(line, ix + 8, ly); ly += 15; if (++shown >= 7) break;
   }
-  if (line && lines < 3) ctx.fillText(line, ix + 8, ly);
-  if (clickable) hit(node, "ed:ep:prompt", ix, y, iw, 54, ({ ev }) => {
-    const set = (s) => { if (s !== null && s !== undefined) writeEdit(node, { ...readEdit(node), prompt: String(s).slice(0, 800) }, true); };
-    if (app.canvas && app.canvas.prompt) app.canvas.prompt("Edit prompt", readEdit(node).prompt, set, ev); else set(window.prompt("Edit prompt", readEdit(node).prompt));
-  }, "text");
-  y += 62;
+  if (clickable) hit(node, "ed:ep:prompt", ix, y, iw, PH, () => openPromptEditor(node, ix, y, iw, PH), "text");
+  y += PH + 8;
   slider(ctx, node, "denoise", ix, y, iw, clickable); y += ROW_H + 8;
 
   // status
