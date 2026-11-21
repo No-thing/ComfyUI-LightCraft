@@ -462,7 +462,7 @@ function cmpDown(node, { ev, pos }) {
 }
 
 // ---------------------------------------------------------------- the editor widget
-const TABS = [["compare", "Auto"], ["browse", "Browse"], ["crop", "Crop"], ["face", "Face"], ["brush", "Brush"], ["color", "Color"], ["finish", "Skin pass"]];
+const TABS = [["compare", "Auto"], ["browse", "Browse"], ["crop", "Crop"], ["face", "Face"], ["brush", "Edit"], ["color", "Color"], ["finish", "Skin pass"]];
 const finT = (t) => t === "finish" || t === "browse";       // both show the saved-pictures browser
 const EDIT_SUBS = TABS.slice(1);
 const CREAM_FULL = "#f3ead8";
@@ -1371,7 +1371,7 @@ function drawEditor(ctx, node, w, y) {
     ctx.fillText(isLinked(node, "compare_image") ? "After comes from compare_image." : "After follows the Save / Preview after this node.", M, ty + 12);
   } else if (tab === "brush") {
     ctx.font = FONT; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = C.label;
-    ctx.fillText(fitText(ctx, "Paint, write the prompt with your LoRA's trigger word, press Run. Needs the Brush edit group in the workflow.", width - 2 * M), M, ty + 12);
+    ctx.fillText(fitText(ctx, "Paint, write the prompt with your LoRA's trigger word, press Run. Needs the Edit group in the workflow.", width - 2 * M), M, ty + 12);
   } else if (tab === "face") {
     hint("Face reshaping runs first, so the crop and colour follow the new shape.", ty + 12);
   } else if (finT(tab)) {

@@ -444,7 +444,7 @@ export function rewritePrompt(data) {
       if (n.class_type !== "LightCraftCrop") continue;
       const nid = String(id).split(":").pop(), node = allNodes(app.graph).find((m) => cls(m) === "LightCraftCrop" && String(m.id) === nid) || null;
       const tab = node && node.__lc && node.__lc.tab, doc = node && node.properties && node.properties.lc_doc;
-      if (!(doc || (EXPORT && n.inputs.history_pick)) || !(["browse", "crop", "face", "color"].includes(tab) || (EXPORT && tab === "finish"))) continue;
+      if (!(doc || (EXPORT && n.inputs.history_pick)) || !(["browse", "crop", "face", "brush", "color"].includes(tab) || (EXPORT && tab === "finish"))) continue;
       delete n.inputs.image_in; delete n.inputs.compare_image;
       n.inputs.full_mode = false;
       if (doc && !n.inputs.history_pick) n.inputs.history_pick = `open::${doc} [output]`;     // layer 0 = the document's own picture
