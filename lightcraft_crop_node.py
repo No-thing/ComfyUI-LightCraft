@@ -336,7 +336,17 @@ class LightCraftCrop:
             if image_in is not None:
                 info, dims0 = _save_preview(raw[0], "lc_src_", None)
             elif pick and raw is None:                      # a picture opened from the Browse tab: layer 0 is a lossless copy of it
-                info, dims0 = _save_preview(frames[0], "lc_src_", None)
+                info, dims0 = None, None
+                if re.match(r"^lc_src_[0-9a-f]{16}\.png$", pick_origin or ""):
+                    # a later state of the same document (an Edit-tab redraw, say): layer 0 stays the ORIGINAL picture, so the History and the Source are not replaced by the edit
+                    try:
+                        from .lc_safe import safe_annotated_path
+                        with Image.open(safe_annotated_path(pick_origin + " [temp]")) as _im0:
+                            info, dims0 = {"filename": pick_origin, "subfolder": "", "type": "temp"}, [_im0.size[0], _im0.size[1]]
+                    except Exception:
+                        info, dims0 = None, None            # the original is gone (temp cleared): fall back to the old behaviour
+                if info is None:
+                    info, dims0 = _save_preview(frames[0], "lc_src_", None)
             elif raw is not None:
                 info, dims0 = {"filename": image, "subfolder": "", "type": "input"}, [raw[0].shape[1], raw[0].shape[0]]
             else:

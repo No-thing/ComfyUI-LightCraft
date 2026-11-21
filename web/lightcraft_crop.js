@@ -1786,7 +1786,9 @@ function setupNode(node) {
     const og = msg && msg.lc_origin && msg.lc_origin[0];
     if (og) {                                                  // a new incoming picture = a new document: fresh history
       const p = props(node);
-      if (p.lc_origin !== og.filename || !histList(node).length) {
+      const pk = String(val(node, "history_pick") || "");
+      const sameDoc = pk.includes("::") && pk.split("::")[0].trim() === p.lc_origin && histList(node).length > 0;      // a later state of the same document: the History and the Source stay
+      if (!sameDoc && (p.lc_origin !== og.filename || !histList(node).length)) {
         const fresh = p.lc_origin !== undefined && p.lc_origin !== og.filename;
         p.lc_origin = og.filename;
         p.lc_history = [{ f: og.filename, type: og.type || "temp", w: og.w, h: og.h, t: Date.now(), label: "Source" }];
