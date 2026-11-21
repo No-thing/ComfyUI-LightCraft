@@ -15,6 +15,8 @@ browser instead; nothing extra has to be wired.)
 The pixel work lives in lc_geometry.py; the interactive panel is web/lightcraft_crop.js.
 """
 import hashlib
+import json
+import re
 import os
 import time
 
@@ -203,12 +205,56 @@ def _face_for_output(raw, xf, frame_wh):
         return raw or "{}"
 
 
+EDIT_MASK_RE = re.compile(r"^lc_mask_[0-9a-f]{8,32}\.png$")
+
+
+def _edit_for_output(raw, p, src_wh, n, out_hw, finish):
+    """The Edit tab: the brush mask (a temp picture the page uploaded) carried through the SAME straighten / crop / resize as the
+    picture, plus the prompt and strength. -> (edit_mask [n,h,w], edit_prompt, edit_on, edit_strength). edit_on is false when nothing is painted."""
+    h, w = out_hw
+    off = (torch.zeros((n, h, w), dtype=torch.float32), "", False, 0.8)
+    if finish or folder_paths is None:
+        return off
+    try:
+        d = json.loads(raw or "{}")
+        if not isinstance(d, dict) or not d.get("on", True) or not d.get("has"):
+            return off
+        name = str(d.get("mask") or "")
+        prompt = str(d.get("prompt") or "").strip()
+        strength = min(1.0, max(0.05, float(d.get("denoise", 0.8))))
+        if not EDIT_MASK_RE.match(name):
+            return off
+        if d.get("src") and d["src"] != f"{src_wh[0]}x{src_wh[1]}":
+            print("[LightCraft] the Edit brush mask was painted on a picture of another size: ignored. Paint it again in the Edit tab.")
+            return off
+        from .lc_safe import safe_annotated_path
+        path = safe_annotated_path(name + " [temp]")
+        if not os.path.isfile(path):
+            print("[LightCraft] the Edit brush mask file is gone (temp files go when ComfyUI closes): paint it again in the Edit tab.")
+            return off
+        with Image.open(path) as im:
+            im = im.convert("L")
+            if im.size != tuple(src_wh):
+                im = im.resize(tuple(src_wh), Image.BILINEAR)
+            m = np.asarray(im, dtype=np.float32) / 255.0
+        m = geo.process_mask(m, p)
+        if float(m.max()) < 0.02:
+            return off
+        mt = torch.from_numpy(np.ascontiguousarray(m)).unsqueeze(0).repeat(n, 1, 1)
+        print(f"[LightCraft] Edit tab: brush mask {int((m > 0.5).sum())} px, prompt {prompt[:60]!r}, strength {strength:.2f}")
+        return (mt, prompt, True, strength)
+    except Exception as e:
+        print("[LightCraft] Edit tab mask skipped:", e)
+        return off
+
+
 class LightCraftCrop:
     OUTPUT_NODE = True        # an Edit-tab run is just this node (the generation is cut out of the prompt), so it must be able to run on its own
     CATEGORY = "image/transform"
-    RETURN_TYPES = ("IMAGE", "INT", "INT", "BOOLEAN", "MASK", "AUSBOSS_STITCHER", "IMAGE", "STRING", "BOOLEAN", "BOOLEAN", "STRING", "STRING", "BOOLEAN", "BOOLEAN", "STRING")
+    RETURN_TYPES = ("IMAGE", "INT", "INT", "BOOLEAN", "MASK", "AUSBOSS_STITCHER", "IMAGE", "STRING", "BOOLEAN", "BOOLEAN", "STRING", "STRING", "BOOLEAN", "BOOLEAN", "STRING", "MASK", "STRING", "BOOLEAN", "FLOAT")
     RETURN_NAMES = ("image", "width", "height", "outpaint", "outpaint_mask", "outpaint_stitcher", "original", "grade",
-                    "finish", "normal", "save_name", "save_path", "full", "upscale", "face_data")
+                    "finish", "normal", "save_name", "save_path", "full", "upscale", "face_data",
+                    "edit_mask", "edit_prompt", "edit_on", "edit_strength")
     FUNCTION = "run"
 
     @classmethod
@@ -237,7 +283,8 @@ class LightCraftCrop:
                 "pad_bottom": ("INT", {"default": 0, "min": 0, "max": BIG}),
                 "outpaint_aspect": (geo.ASPECTS, {"default": "original"}),
                 "constrain_crop": ("BOOLEAN", {"default": False}),
-                "keep_input_size": ("BOOLEAN", {"default": False}),     # ON: a bigger canvas (outpaint / turn) is scaled back to the input's pixel count. OFF (default): the picture keeps its pixels and the canvas just gets bigger
+                "keep_input_size": ("BOOLEAN", {"default": False}),
+                "edit_data": ("STRING", {"default": "{}"}),             # the Edit tab: brush mask file name, prompt, strength (one JSON, last so saved workflows keep their values)     # ON: a bigger canvas (outpaint / turn) is scaled back to the input's pixel count. OFF (default): the picture keeps its pixels and the canvas just gets bigger
             },
             "optional": {"image_in": ("IMAGE",), "compare_image": ("IMAGE",),
                          "full_mode": ("BOOLEAN", {"forceInput": True})},   # wire any on/off button here: on = upscale in every run, the grade comes after the upscale
@@ -349,7 +396,8 @@ class LightCraftCrop:
         return {"ui": ui, "result": (out, results[0]["width"], results[0]["height"], fill_on, fill_mask,
                                      _outpaint_stitcher(out, fill_mask), original, _grade_string(p.get("color_data"), unique_id),
                                      finish, not finish, save_name, save_path, full, finish or full,
-                                     _face_for_output(face_raw, results[0].get("xf"), (w0_, h0_)))}
+                                     _face_for_output(face_raw, results[0].get("xf"), (w0_, h0_)))
+                                    + _edit_for_output(p.get("edit_data"), p, (w0_, h0_), len(results), out.shape[1:3], finish)}
 
 
 def _outpaint_stitcher(canvas, fill):

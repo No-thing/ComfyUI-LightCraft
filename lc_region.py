@@ -69,6 +69,24 @@ def make_region(w, h, P, kind, size, margin):
     return reg
 
 
+def make_mask_region(w, h, mask, size, margin):
+    """A painted brush mask (float32 [h, w], 1 = redraw) -> the same kind of region dict as make_region: a box around what was painted,
+    some context around it, enlarged to `size`. The mask itself (cut to the box) is what paste() blends with."""
+    ys, xs = np.where(mask > 0.02)
+    if not len(xs):
+        raise ValueError("Nothing is painted. Brush the area in the Edit tab first.")
+    x0, x1, y0, y1 = int(xs.min()), int(xs.max()) + 1, int(ys.min()), int(ys.max()) + 1
+    pad = max(24, int(round(max(x1 - x0, y1 - y0) * margin)))
+    x0, y0, x1, y1 = max(0, x0 - pad), max(0, y0 - pad), min(w, x1 + pad), min(h, y1 + pad)
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        raise ValueError("The painted area is too small.")
+    cw, ch = x1 - x0, y1 - y0
+    s = size / max(cw, ch)
+    tw = max(MULT, int(round(cw * s / MULT)) * MULT)
+    th = max(MULT, int(round(ch * s / MULT)) * MULT)
+    return dict(x0=x0, y0=y0, x1=x1, y1=y1, tw=tw, th=th, kind="mask", w=w, h=h, mask=np.ascontiguousarray(mask[y0:y1, x0:x1], dtype=np.float32))
+
+
 def _pil(arr):
     return Image.fromarray((np.clip(arr, 0, 1) * 255 + 0.5).astype(np.uint8))
 
@@ -126,7 +144,17 @@ def match_color(new, ref, strength):
 def region_mask(reg, feather=0.22):
     """The mask paste() uses, (ch, cw, 1) in the crop's own pixels: white = what the redraw replaces."""
     cw, ch = reg["x1"] - reg["x0"], reg["y1"] - reg["y0"]
+    if reg.get("kind") == "mask":
+        return _brush_mask(reg, feather)
     return eye_mask(cw, ch, reg, feather) if reg.get("polys") else soft_mask(cw, ch, feather)
+
+
+def _brush_mask(reg, feather):
+    """(ch, cw, 1): the painted mask, softened a little so the seam never shows."""
+    m = reg["mask"]
+    r = max(1.0, float(feather) * 0.04 * max(m.shape))
+    im = Image.fromarray((np.clip(m, 0, 1) * 255 + 0.5).astype(np.uint8), "L").filter(ImageFilter.GaussianBlur(radius=r))
+    return (np.asarray(im, dtype=np.float32) / 255.0)[..., None]
 
 
 def paste(img, redrawn, reg, feather=0.22, color_match=0.8):
@@ -135,6 +163,14 @@ def paste(img, redrawn, reg, feather=0.22, color_match=0.8):
     cw, ch = x1 - x0, y1 - y0
     new = np.asarray(_pil(redrawn[..., :3]).resize((cw, ch), Image.LANCZOS), dtype=np.float32) / 255.0
     old = img[y0:y1, x0:x1, :3]
+    if reg.get("kind") == "mask":                                # brush edit: the new picture's soft colours follow the old one's (no colour halo), the new fine detail stays
+        r = max(2.0, 0.03 * max(cw, ch))
+        blur = lambda a: np.stack([np.asarray(_pil(a[..., c:c + 1].repeat(3, 2)).filter(ImageFilter.GaussianBlur(radius=r)), dtype=np.float32)[..., 0] / 255.0 for c in range(3)], -1)
+        new = np.clip(new + (blur(old) - blur(new)) * color_match * 0.5, 0, 1)
+        m = _brush_mask(reg, feather)
+        out = img.copy()
+        out[y0:y1, x0:x1, :3] = old * (1 - m) + new * m
+        return out
     if reg.get("polys"):                                         # eyes: carry the original's soft colours over (kills colour halos), keep the new fine detail
         r = max(2.0, 0.22 * max(8.0, reg["ew"])) if reg.get("kind") == "eyes" else max(2.0, 0.06 * reg.get("fw", 200.0))
         blur = lambda a: np.stack([np.asarray(_pil(a[..., c:c + 1].repeat(3, 2)).filter(ImageFilter.GaussianBlur(radius=r)), dtype=np.float32)[..., 0] / 255.0 for c in range(3)], -1)

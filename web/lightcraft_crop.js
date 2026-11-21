@@ -7,6 +7,7 @@ import { colorPictures, colorOpenness, drawColorPanel, colorActive, COLOR_HIDDEN
 import { lockRoll, unlockRoll, rollLocked, rollAll } from "./lc_roll_lock.js";
 import { DISPLAY, UI, loadBrandFonts } from "./lc_brand.js";
 import { tabFont, loadSlab, drawTabTips, tipHide } from "./lc_tab_tips.js";
+import { drawEditView, drawEditPanel, editActive, EDIT_HIDDEN, EDIT_W, EDIT_MIN_NODE_W } from "./lc_edit_tab.js";
 import { faceLivePicture, faceSliders, faceSetSliders, faceAutoRefresh, faceOpenness, drawFaceView, drawFacePanel, faceActive, FACE_HIDDEN, FACE_W, FACE_MIN_NODE_W } from "./lc_face_tab.js";
 import { setRegionHistAdder } from "./lc_region_job.js";
 import { FIN_W, FIN_MIN_NODE_W, drawFinishPanel, drawFinishGrid, drawFinishStrip, STRIP_H, drawFinishBar, drawFinishHead, finView, finKey, finishPictures, finRefresh, finOnExecuted, finOnError, finOnStatus, rewritePrompt, tempButton, finTipRects, finFrameStart, setDocOpener, setTabHook, finDocOpened, finBackToGrid, saveEditOnly, hasEdit, editSig } from "./lc_finish_tab.js";
@@ -36,7 +37,7 @@ const HEAD_H = 26;
 const DEG = "°";
 const OVERLAYS = ["thirds", "grid", "golden", "off"];
 const HIDDEN = ["crop_aspect_ratio", "crop_x", "crop_y", "crop_width", "crop_height",
-  "history_pick", ...COLOR_HIDDEN, "crop_src", ...FACE_HIDDEN,
+  "history_pick", ...COLOR_HIDDEN, "crop_src", ...FACE_HIDDEN, ...EDIT_HIDDEN,
   "pad_left", "pad_top", "pad_right", "pad_bottom", "outpaint_aspect", "constrain_crop", "keep_input_size"];
 
 const ASPECT_ROWS = [["free", "original", "1:1", "2:3", "3:2"], ["3:4", "4:3", "9:16", "16:9", "21:9"]];
@@ -461,7 +462,7 @@ function cmpDown(node, { ev, pos }) {
 }
 
 // ---------------------------------------------------------------- the editor widget
-const TABS = [["compare", "Auto"], ["browse", "Browse"], ["crop", "Crop"], ["face", "Face"], ["color", "Color"], ["finish", "Skin pass"]];
+const TABS = [["compare", "Auto"], ["browse", "Browse"], ["crop", "Crop"], ["face", "Face"], ["brush", "Brush"], ["color", "Color"], ["finish", "Skin pass"]];
 const finT = (t) => t === "finish" || t === "browse";       // both show the saved-pictures browser
 const EDIT_SUBS = TABS.slice(1);
 const CREAM_FULL = "#f3ead8";
@@ -549,6 +550,7 @@ function setTab(node, id) {
   const d = 0;                                   // the node keeps its size on every tab
   const wNeed = id === "color" ? Math.max(node.size[0], COLOR_MIN_NODE_W)
     : id === "face" ? Math.max(node.size[0], FACE_MIN_NODE_W)
+    : id === "brush" ? Math.max(node.size[0], EDIT_MIN_NODE_W)
     : finT(id) ? Math.max(node.size[0], FIN_MIN_NODE_W)
     : panelOpen(node) ? Math.max(node.size[0], PANEL_MIN_W) : node.size[0];       // room for the History panel (and the Color panel)
   if (d || wNeed !== node.size[0]) node.setSize([wNeed, node.size[1] + d]);   // the picture keeps its size
@@ -560,7 +562,7 @@ function openDocument(node, x) {
   p.lc_doc = x.rel; p.lc_doc_name = x.name || x.rel;
   p.lc_history = []; p.lc_hist_cur = null; p.lc_origin = undefined; S.thumbs = {}; S.pick = null;
   put(node, "history_pick", `open::${x.rel} [output]`);
-  put(node, "face_data", "{}"); put(node, "color_data", "{}"); put(node, "crop_src", "");
+  put(node, "face_data", "{}"); put(node, "edit_data", "{}"); put(node, "color_data", "{}"); put(node, "crop_src", "");
   try { autoCropWidgets(node); resetPads(node); } catch (e) { /* a fresh document starts with a clean crop */ }
   finDocOpened(node);
   setTab(node, "crop");
@@ -1065,7 +1067,7 @@ function drawEditor(ctx, node, w, y) {
       ctx.fillText(label, tx + subW / 2, ty0 + tabH / 2 + 1);
       if (modeP > 0.5) hit(node, "ed:tab:" + id, tx, ty0, subW, tabH, () => { tipHide(node); setTab(node, id); }, "pointer");
       tabRects[id] = [tx, ty0, subW, tabH];
-      if ((id === "color" && colorActive(node)) || (id === "face" && faceActive(node)) || (id === "crop" && !val(node, "constrain_crop") && PAD_NAMES.some((n) => val(node, n) > 0))) {
+      if ((id === "color" && colorActive(node)) || (id === "face" && faceActive(node)) || (id === "brush" && editActive(node)) || (id === "crop" && !val(node, "constrain_crop") && PAD_NAMES.some((n) => val(node, n) > 0))) {
         ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(tx + subW - 9, ty0 + 9, 3, 0, Math.PI * 2); ctx.fill();
       }
     });
@@ -1156,6 +1158,7 @@ function drawEditor(ctx, node, w, y) {
     const dim = (P) => (P ? `${P.w} × ${P.h}` : "—");
     const msg = tab === "compare" ? `Before ${dim(S.before)}      After ${dim(S.after)}`
       : tab === "color" ? `Original ${dim(S.before)}      Graded: live preview, applied to the output on run`
+      : tab === "brush" ? "Paint the area to redraw, write the prompt, press Run. Only the painted area changes."
       : tab === "face" ? "Reshape the face. Live preview here, applied to the picture before the crop when you run."
       : finT(tab) ? (finView(node) === "grid" ? (tab === "browse" ? "Pick the picture you want to edit. Any saved picture works. Double-click to open it." : "Your saved pictures. Orange glow = already upscaled (it has an _up twin).") : S.finPics ? `${S.finPics.name}      ${S.finPics.edit ? "Press Upscale your edit: it is saved first, then upscaled" : S.finPics.hasUp ? "Before = saved picture, After = its _up twin" : "Not upscaled yet: tick it and press Upscale"}` : "Pick a saved picture from the list on the right.")
       : "Crop, straighten and pad the picture. The padded gray is what an outpaint pass paints.";
@@ -1169,13 +1172,13 @@ function drawEditor(ctx, node, w, y) {
   // slide in from the right while fading in, and slide back out to the right while fading out.
   const pOpen = panelOpen(node) && !finT(tab);                        // the History bar slides away in the Upscale tab
   gl("panelT", pOpen ? 1 : 0);
-  const sideTarget = tab === "color" ? CP_W : tab === "face" ? FACE_W : finT(tab) ? FIN_W : 0;
+  const sideTarget = tab === "color" ? CP_W : tab === "face" ? FACE_W : tab === "brush" ? EDIT_W : finT(tab) ? FIN_W : 0;
   gl("sideW", sideTarget, 0.4);
-  const ce = gl("presC", tab === "color" ? 1 : 0), fe = gl("presF", tab === "face" ? 1 : 0), ue = gl("presU", finT(tab) ? 1 : 0);
+  const ce = gl("presC", tab === "color" ? 1 : 0), fe = gl("presF", tab === "face" ? 1 : 0), ee = gl("presE", tab === "brush" ? 1 : 0), ue = gl("presU", finT(tab) ? 1 : 0);
   const histW = PANEL_W - (PANEL_W - HIST_NARROW) * clamp(S.sideW / 180, 0, 1);       // the History bar narrows while a side panel is out
   const pw = STRIP_W + (histW - STRIP_W) * S.panelT;
   const cw = S.sideW, cgap = cw > 1 ? PANEL_GAP * clamp(cw / 40, 0, 1) : 0;
-  const pe = Math.max(ce, fe, ue);
+  const pe = Math.max(ce, fe, ee, ue);
   const vw = fullW - pw - PANEL_GAP - cw - cgap;
   ctx.save();
   rr(ctx, vx, vy, vw, vh, 6); ctx.clip();
@@ -1225,6 +1228,7 @@ function drawEditor(ctx, node, w, y) {
     if (tab === "browse") drawFinishHead(ctx, node, vx + 8, vy + 4, ue, gl("finSel", fv === "grid" ? 0 : 1), gl("finGrid", fv === "grid" ? 1 : 0), { fitText });
   }
   else if (tab === "face") drawFaceView(ctx, node, st, vx, vy, vw, vh);
+  else if (tab === "brush") drawEditView(ctx, node, st, vx, vy, vw, vh);
   else if (!st) {
     S.map = null;
     ctx.fillStyle = C.label; ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1271,6 +1275,7 @@ function drawEditor(ctx, node, w, y) {
     try {
       if (ce > 0.01) drawColorPanel(ctx, node, sx, vy, cw, vh, ce);
       if (fe > 0.01) drawFacePanel(ctx, node, sx, vy, cw, vh, fe, () => readState(node));
+      if (ee > 0.01) drawEditPanel(ctx, node, sx, vy, cw, vh, ee, () => readState(node));
       if (ue > 0.01) drawFinishPanel(ctx, node, sx, vy, cw, vh, ue, { button, miniSlider, checkbox, fitText, tempButton, onCleared: (k) => clearTemp(node, k), keepFn: tempKeep, drawClip: (c, n, x, y, w) => drawClipBlock(c, n, x, y, w) });
     } finally { node.__lcNoBg = false; }
     ctx.restore();
@@ -1286,7 +1291,7 @@ function drawEditor(ctx, node, w, y) {
     if (S.panelT > 0.02 || !finT(tab)) drawPanelStrip(ctx, node, px + pw - STRIP_W, vy, STRIP_W, vh, pOpen);
   }
   const viewHitTop = tab === "browse" ? 32 : 0, viewHitH = tab === "browse" ? vh - STRIP_H - 8 - viewHitTop : vh;                  // in the Upscale compare view the strip below the picture keeps its own clicks
-  if (tab !== "face" && !(finT(tab) && finView(node) === "grid")) hit(node, "ed:view", vx, vy + viewHitTop, vw, viewHitH, (c) => {
+  if (tab !== "face" && tab !== "brush" && !(finT(tab) && finView(node) === "grid")) hit(node, "ed:view", vx, vy + viewHitTop, vw, viewHitH, (c) => {
     if (S.tab === "crop") viewDown(node, c);
     else if (S.tab === "compare" || S.tab === "color" || finT(S.tab)) cmpDown(node, c);
   }, "default", (pos) => {
@@ -1364,6 +1369,9 @@ function drawEditor(ctx, node, w, y) {
   } else if (tab === "compare") {
     ctx.font = FONT; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = C.label;
     ctx.fillText(isLinked(node, "compare_image") ? "After comes from compare_image." : "After follows the Save / Preview after this node.", M, ty + 12);
+  } else if (tab === "brush") {
+    ctx.font = FONT; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = C.label;
+    ctx.fillText(fitText(ctx, "Paint, write the prompt with your LoRA's trigger word, press Run. Needs the Brush edit group in the workflow.", width - 2 * M), M, ty + 12);
   } else if (tab === "face") {
     hint("Face reshaping runs first, so the crop and colour follow the new shape.", ty + 12);
   } else if (finT(tab)) {

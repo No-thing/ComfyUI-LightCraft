@@ -12,7 +12,7 @@ from .lightcraft_longside_node import LightCraftUpscaleLongSide
 from .lightcraft_finish_node import LightCraftKeepColour, LightCraftFaceProtect, LightCraftEyesOn
 from .lightcraft_watermark_node import LightCraftWatermark
 from .lightcraft_fit_node import LightCraftFitDown, LightCraftFitBack
-from .lightcraft_region_node import LightCraftRegionCrop, LightCraftRegionPaste, LightCraftEyePrompt, LightCraftRegionPasteAuto
+from .lightcraft_region_node import LightCraftRegionCrop, LightCraftRegionPaste, LightCraftEyePrompt, LightCraftRegionPasteAuto, LightCraftMaskCrop
 
 # remove the UI script from the first release if an old install is being overwritten,
 # otherwise it would run next to the new one
@@ -84,6 +84,7 @@ NODE_CLASS_MAPPINGS = {
     "LightCraftOutpaintGate": LightCraftOutpaintGate,
     "LightCraftApplyGrade": LightCraftApplyGrade,
     "LightCraftRegionCrop": LightCraftRegionCrop,
+    "LightCraftMaskCrop": LightCraftMaskCrop,
     "LightCraftRegionPaste": LightCraftRegionPaste,
     "LightCraftEyePrompt": LightCraftEyePrompt,
     "LightCraftPersonMask": LightCraftPersonMask,
@@ -112,6 +113,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LightCraftOutpaintGate": "LightCraft Outpaint Gate (skip what follows when there is nothing to paint)",
     "LightCraftApplyGrade": "LightCraft Apply Grade (last step)",
     "LightCraftRegionCrop": "LightCraft Eyes / Face crop",
+    "LightCraftMaskCrop": "LightCraft Edit brush crop",
     "LightCraftRegionPaste": "LightCraft Eyes / Face paste back",
     "LightCraftEyePrompt": "LightCraft Eye request (colour)",
     "LightCraftPersonMask": "LightCraft Person mask (SAM 3)",

@@ -1,3 +1,13 @@
+## v3.1.0 (preview, branch edit-tab): Brush tab
+
+A true Edit tab. Paint over an area with a round red brush, write a prompt (for example the trigger word of a LoRA), press Run: only the painted area is redrawn by a Flux Klein sampler.
+
+* New **Brush** tab in the Edit Page: red round brush, Size, Feather, Paint / Erase, Reset mask, prompt, Strength.
+* The mask is a temp picture (`lc_mask_*.png` in ComfyUI's temp folder). It goes away when ComfyUI closes and is included in the Browse tab's temp clean-up.
+* The Edit Page has four new outputs: `edit_mask`, `edit_prompt`, `edit_on`, `edit_strength`. The mask follows the crop, turn and resize.
+* New node **LightCraft Edit brush crop** (cuts a box around the painted area, enlarges it, pastes the result back softly with the existing paste node).
+* Nothing runs when nothing is painted.
+
 ## v3.0.1
 
 * Browse now works on its own. It no longer needs the Upscaler (Station) pack, which fixes the "HTTP 404" in the Browse tab. Star ratings still live in the same file, so they stay shared if you also use the Station.

@@ -38,6 +38,35 @@ class LightCraftRegionCrop:
         return (torch.from_numpy(c)[None], reg, torch.from_numpy(mimg)[None])
 
 
+class LightCraftMaskCrop:
+    """The Edit tab's brush mask: cuts a box around the painted area (with some context) out of the picture and enlarges it, ready for a redraw."""
+    CATEGORY = "LightCraft"
+    FUNCTION = "run"
+    RETURN_TYPES = ("IMAGE", "LC_REGION", "IMAGE")
+    RETURN_NAMES = ("crop", "region", "mask")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "image": ("IMAGE",),
+            "mask": ("MASK", {"tooltip": "From the Edit Page (its edit_mask output)."}),
+            "size": (list(R.SIZES), {"default": "Medium 1280", "tooltip": "The crop is enlarged until its long side is this many pixels, then redrawn."}),
+            "margin": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 3.0, "step": 0.05, "tooltip": "Extra picture around the painted area (share of its size), so the model sees some context."}),
+        }}
+
+    def run(self, image, mask, size, margin):
+        arr = _np(image)
+        h, w = arr.shape[:2]
+        m = mask[0].detach().cpu().numpy().astype(np.float32)
+        if m.shape != (h, w):                                    # the picture was upscaled after the Edit Page: the mask follows it
+            m = np.asarray(R.Image.fromarray(m, "F").resize((w, h), R.Image.BILINEAR), dtype=np.float32)
+        reg = R.make_mask_region(w, h, np.clip(m, 0, 1), R.SIZES[size], margin)
+        c = R.crop(arr, reg)
+        mm = R.region_mask(reg, 0.22)
+        mimg = np.repeat(np.asarray(R.Image.fromarray((mm[..., 0] * 255).astype(np.uint8)).resize((reg["tw"], reg["th"]), R.Image.BILINEAR), dtype=np.float32)[..., None] / 255.0, 3, axis=2)
+        return (torch.from_numpy(c)[None], reg, torch.from_numpy(mimg)[None])
+
+
 class LightCraftEyePrompt:
     """Writes the eyes request. {colour} in the template is replaced by the colour you chose, or (colour empty) by the colour read from the irises."""
     CATEGORY = "LightCraft"

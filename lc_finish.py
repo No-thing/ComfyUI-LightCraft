@@ -19,7 +19,7 @@ try:
 except ImportError:  # outside ComfyUI
     folder_paths = None
 
-TEMP_PREFIXES = ("lc_src_", "lc_hist_", "lc_before_", "lc_after_", "ComfyUI_temp_")   # the Edit Page's pictures + the preview pictures ComfyUI itself leaves
+TEMP_PREFIXES = ("lc_src_", "lc_hist_", "lc_before_", "lc_after_", "lc_mask_", "ComfyUI_temp_")   # the Edit Page's pictures + the preview pictures ComfyUI itself leaves
 MIN_AGE = 90                                            # seconds: anything newer may belong to a render that is running right now
 UP_RE = re.compile(r"_up(_\d+)?$")
 
