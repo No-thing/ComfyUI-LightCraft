@@ -353,6 +353,8 @@ class LightCraftCrop:
                 info, dims0 = None, None
             if info is not None:
                 ui["lc_origin"] = [dict(info, w=dims0[0], h=dims0[1])]
+            if image_in is not None:
+                ui["lc_gen"] = [True]                           # a picture came in on image_in: the Edit Page is working on THAT, not on a picture opened earlier in Browse
             if image_in is not None or pick:
                 src_info, dims = _save_preview(frames[0], "lc_src_", None) if pick else (info, dims0)
                 ui["lc_source"] = [src_info]

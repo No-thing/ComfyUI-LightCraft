@@ -1783,6 +1783,7 @@ function setupNode(node) {
     if (msg && msg.lc_pick_stale) {                            // a new picture arrived: the old history pick no longer applies
       put(node, "history_pick", ""); props(node).lc_hist_cur = props(node).lc_origin;
     }
+    if (msg && msg.lc_gen) { const pp = props(node); if (pp.lc_doc) { pp.lc_doc = undefined; pp.lc_doc_name = undefined; } }       // a generated picture is the document now: an old Browse picture must never be loaded in its place
     const og = msg && msg.lc_origin && msg.lc_origin[0];
     if (og) {                                                  // a new incoming picture = a new document: fresh history
       const p = props(node);
