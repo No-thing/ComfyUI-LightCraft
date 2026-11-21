@@ -444,10 +444,12 @@ export function rewritePrompt(data) {
       if (n.class_type !== "LightCraftCrop") continue;
       const nid = String(id).split(":").pop(), node = allNodes(app.graph).find((m) => cls(m) === "LightCraftCrop" && String(m.id) === nid) || null;
       const tab = node && node.__lc && node.__lc.tab, doc = node && node.properties && node.properties.lc_doc;
-      if (!(doc || (EXPORT && n.inputs.history_pick)) || !(["browse", "crop", "face", "brush", "color"].includes(tab) || (EXPORT && tab === "finish"))) continue;
+      const origin = node && node.properties && /^lc_src_[0-9a-f]{16}\.png$/.test(String(node.properties.lc_origin || "")) ? node.properties.lc_origin : "";       // the generated picture the Edit Page is working on (its Source layer, a temp file)
+      if (!(doc || origin || (EXPORT && n.inputs.history_pick)) || !(["browse", "crop", "face", "brush", "color"].includes(tab) || (EXPORT && tab === "finish"))) continue;
       delete n.inputs.image_in; delete n.inputs.compare_image;
       n.inputs.full_mode = false;
       if (doc && !n.inputs.history_pick) n.inputs.history_pick = `open::${doc} [output]`;     // layer 0 = the document's own picture
+      else if (!doc && origin && !n.inputs.history_pick) n.inputs.history_pick = `${origin}::${origin} [temp]`;      // a generated picture: its Source layer. Edit tabs never start a new generation
       // keep what the Edit Page feeds (the Qwen outpaint, the grade): savers become previews so nothing lands in the folders until you export
       let savers = Object.entries(out).filter(([, m]) => (m.class_type === "Image Saver" || m.class_type === "SaveImage") && isLink(m.inputs && (m.inputs.images)));
       const keepE = new Set([id]), roots = [];
