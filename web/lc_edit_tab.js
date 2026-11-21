@@ -98,6 +98,24 @@ function loadMask(node, name, cv) {
   img.src = url;
 }
 
+// middle mouse button over the picture: the red mask is hidden while it is held, so you can see the edit itself
+function bindMiddle(node, K) {
+  if (K.mmBound) return; K.mmBound = true;
+  const inside = (ev) => {
+    if (!K.map || app.graph.getNodeById(node.id) !== node || !app.canvas.convertEventToCanvasOffset) return false;
+    const p = app.canvas.convertEventToCanvasOffset(ev), x = p[0] - node.pos[0], y = p[1] - node.pos[1], [ix, iy, iw, ih] = K.map;
+    return node.__lc && node.__lc.tab === "brush" && x >= ix && x <= ix + iw && y >= iy && y <= iy + ih;
+  };
+  window.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 1 || !inside(ev)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); ev.stopPropagation();
+    K.holdHide = true; node.setDirtyCanvas(true, true);
+  }, true);
+  const up = () => { if (K.holdHide) { K.holdHide = false; node.setDirtyCanvas(true, true); } };
+  window.addEventListener("pointerup", up, true); window.addEventListener("pointercancel", up, true);
+  window.addEventListener("auxclick", (ev) => { if (ev.button === 1 && inside(ev)) { ev.preventDefault(); ev.stopPropagation(); } }, true);
+}
+
 const radiusPx = (K, d) => Math.max(1, Math.max(K.cv.width, K.cv.height) * 0.0025 * d.size);       // brush radius in mask pixels
 
 function stamp(K, d, x, y) {
@@ -212,12 +230,16 @@ export function drawEditView(ctx, node, st, vx, vy, vw, vh) {
   const [ix, iy, iw, ih] = fit(st.s.w, st.s.h, vx + 6, vy + 6, vw - 12, vh - 12);
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(src, 0, 0, src.width || st.s.w, src.height || st.s.h, ix, iy, iw, ih);
-  ctx.save(); ctx.globalAlpha = d.on ? 0.6 : 0.2; ctx.drawImage(K.cv, ix, iy, iw, ih); ctx.restore();
+  const hidden = !!(K.hide || K.holdHide);                                                                       // button = stays hidden, middle mouse = hidden while held
+  if (!hidden) { ctx.save(); ctx.globalAlpha = d.on ? 0.6 : 0.2; ctx.drawImage(K.cv, ix, iy, iw, ih); ctx.restore(); }
+  else { ctx.fillStyle = "rgba(0,0,0,0.5)"; rr(ctx, vx + 10, vy + 10, 92, 22, 5); ctx.fill(); ctx.fillStyle = "#fff"; ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Mask hidden", vx + 56, vy + 21.5); }
+  bindMiddle(node, K);
   K.map = [ix, iy, iw, ih];
   const sc = iw / K.cv.width;                                                                                    // screen px per mask px
 
   const toMask = (pos) => [(pos[0] - ix) / sc, (pos[1] - iy) / sc];
   hit(node, "ed:edit:paint", ix, iy, iw, ih, ({ ev, pos }) => {
+    K.hide = false;
     if (!readEdit(node).on) writeEdit(node, { ...readEdit(node), on: true }, false);
     const dd = readEdit(node), p0 = toMask(pos);
     clearTimeout(K.timer);
@@ -319,8 +341,10 @@ export function drawEditPanel(ctx, node, px, py, pw, ph, e, getState) {
   y += 38;
   slider(ctx, node, "size", ix, y, iw, clickable); y += ROW_H + 6;
   slider(ctx, node, "feather", ix, y, iw, clickable); y += ROW_H + 6;
-  if (clickable) btn(ctx, node, "ep:reset", ix, y, iw, 28, "Reset mask", false, () => resetMask(node));
-  else { rr(ctx, ix, y, iw, 28, 5); ctx.fillStyle = C.btn; ctx.fill(); }
+  if (clickable) {
+    btn(ctx, node, "ep:reset", ix, y, half, 28, "Reset mask", false, () => resetMask(node));
+    btn(ctx, node, "ep:hide", ix + half + 6, y, half, 28, K.hide ? "Show mask" : "Hide mask", !!K.hide, () => { K.hide = !K.hide; node.setDirtyCanvas(true, true); });
+  } else { rr(ctx, ix, y, iw, 28, 5); ctx.fillStyle = C.btn; ctx.fill(); }
   y += 40;
 
   // prompt
